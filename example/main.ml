@@ -1,6 +1,6 @@
 open! Core_kernel
 open! Async_kernel
-open! Async_uv
+open! Async_libuv
 
 let run name =
   Fd.with_file name [ `RDONLY ] ~f:(fun fd ->

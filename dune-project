@@ -1,11 +1,11 @@
 (lang dune 2.9)
 
-(name async_uv)
+(name async_libuv)
 
 (generate_opam_files true)
 
 (package
- (name async_uv)
+ (name async_libuv)
  (depends
   (ocaml
    (>= 4.11.0))

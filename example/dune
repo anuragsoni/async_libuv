@@ -2,4 +2,4 @@
  (name main)
  (preprocess
   (pps ppx_jane))
- (libraries async_uv))
+ (libraries async_libuv))

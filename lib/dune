@@ -1,5 +1,5 @@
 (library
- (public_name async_uv)
+ (public_name async_libuv)
  (preprocess
   (pps ppx_jane))
  (libraries core_kernel async_kernel luv faraday))
