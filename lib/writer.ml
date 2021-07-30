@@ -73,16 +73,33 @@ let mk_iovecs iovecs =
 ;;
 
 let write_iovecs t iovecs =
+  match Luv.Stream.try_write t.fd iovecs with
+  | Ok n ->
+    Faraday.shift t.buf n;
+    `Ok
+  | Error (`EAGAIN | `EINTR) -> `Ok
+  | Error (`EPIPE | `ECONNRESET | `EHOSTUNREACH | `ENETDOWN | `ENETUNREACH | `ETIMEDOUT)
+    -> `Eof
+  | Error e ->
+    Error.raise_s [%message "Error while writing" ~error:(Luv.Error.strerror e)]
+;;
+
+let wait_and_write_iovecs t =
   let ivar = Ivar.create () in
-  Luv.Stream.write t.fd iovecs (fun res count ->
-      match res with
-      | Ok () ->
-        Faraday.shift t.buf count;
-        Ivar.fill ivar `Ok
-      | Error
-          (`EPIPE | `ECONNRESET | `EHOSTUNREACH | `ENETDOWN | `ENETUNREACH | `ETIMEDOUT)
-        -> Ivar.fill ivar `Eof
-      | Error e -> Ivar.fill ivar (`Error e));
+  (match Faraday.operation t.buf with
+  | `Yield -> Ivar.fill ivar `Ok
+  | `Close -> Ivar.fill ivar `Eof
+  | `Writev iovecs ->
+    let iovecs = mk_iovecs iovecs in
+    Luv.Stream.write t.fd iovecs (fun res count ->
+        match res with
+        | Ok () ->
+          Faraday.shift t.buf count;
+          Ivar.fill ivar `Ok
+        | Error
+            (`EPIPE | `ECONNRESET | `EHOSTUNREACH | `ENETDOWN | `ENETUNREACH | `ETIMEDOUT)
+          -> Ivar.fill ivar `Eof
+        | Error e -> Ivar.fill ivar (`Error e)));
   Ivar.read ivar
 ;;
 
@@ -119,27 +136,40 @@ module Single_write_result = struct
     | Stop
 end
 
-let single_write t ~f =
+let single_write t =
   match Faraday.operation t.buf with
-  | `Yield -> f Single_write_result.Continue
-  | `Close -> f Stop
+  | `Yield -> Single_write_result.Continue
+  | `Close -> Stop
   | `Writev iovecs ->
-    write_iovecs t (mk_iovecs iovecs)
-    >>> (function
-    | `Ok -> f Continue
-    | `Eof -> f Stop
-    | `Error _ -> f Stop)
+    (match write_iovecs t (mk_iovecs iovecs) with
+    | `Ok -> Continue
+    | `Eof -> Stop)
 ;;
 
 let rec write_everything t =
-  single_write t ~f:(function
-      | Single_write_result.Stop -> stop_writer t
-      | Continue ->
-        if not (Faraday.has_pending_output t.buf)
-        then (
-          t.writer_state <- `Inactive;
-          if is_closed t then stop_writer t)
-        else write_everything t)
+  match single_write t with
+  | Stop -> stop_writer t
+  | Continue ->
+    if not (Faraday.has_pending_output t.buf)
+    then (
+      t.writer_state <- `Inactive;
+      if is_closed t then stop_writer t)
+    else wait_and_write_everything t
+
+and wait_and_write_everything t =
+  Clock_ns.with_timeout t.config.write_timeout (wait_and_write_iovecs t)
+  >>> fun result ->
+  match result with
+  | `Result `Ok -> write_everything t
+  | `Result `Eof -> stop_writer t
+  | `Result (`Error e) ->
+    Error.raise_s [%message "Error while writing" ~error:(Luv.Error.strerror e)]
+  | `Timeout -> stop_writer t
+  | `Result ((`Bad_fd | `Closed) as result) ->
+    raise_s
+      [%sexp
+        "Async_transport.Writer: fd changed"
+        , { t : t; ready_to_result = (result : [ `Bad_fd | `Closed ]) }]
 ;;
 
 let is_writing t =
