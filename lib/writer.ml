@@ -155,7 +155,7 @@ let single_write ~wait ~f t =
 ;;
 
 let rec write_everything ?(wait = false) t =
-  single_write ~wait:false t ~f:(function
+  single_write ~wait t ~f:(function
       | Stop -> stop_writer t
       | Continue ->
         if not (Faraday.has_pending_output t.buf)
