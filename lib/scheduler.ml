@@ -19,12 +19,7 @@ let create () =
 
 let cycle t =
   if not (Kernel_scheduler.can_run_a_job t.kernel_scheduler)
-  then
-    if (* TODO: Maybe we should always use `NOWAIT since we are attempting to get
-          async_kernel's scheduler and libuv's scheduler to play nice? *)
-       Kernel_scheduler.has_upcoming_event t.kernel_scheduler
-    then ignore (Luv.Loop.run ~loop:t.uv_loop ~mode:`NOWAIT () : bool)
-    else ignore (Luv.Loop.run ~loop:t.uv_loop ~mode:`ONCE () : bool);
+  then ignore (Luv.Loop.run ~loop:t.uv_loop ~mode:`NOWAIT () : bool);
   Kernel_scheduler.run_cycle t.kernel_scheduler
 ;;
 
