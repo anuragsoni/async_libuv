@@ -83,7 +83,8 @@ let close t =
   if not t.is_closed
   then (
     t.is_closed <- true;
-    close_stream t.fd >>> fun () -> Ivar.fill t.closed ())
+    close_stream t.fd >>> fun () -> Ivar.fill t.closed ());
+  closed t
 ;;
 
 module Driver = struct

@@ -48,3 +48,4 @@ let run () =
 let () =
   run ();
   never_returns (Scheduler.run ())
+;;
