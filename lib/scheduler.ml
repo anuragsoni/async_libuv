@@ -17,10 +17,20 @@ let create () =
   { is_running = false; kernel_scheduler; uv_loop; initialized_at = Backtrace.get () }
 ;;
 
+let advance_scheduler t =
+  if Kernel_scheduler.can_run_a_job t.kernel_scheduler
+  then Kernel_scheduler.run_cycle t.kernel_scheduler
+;;
+
 let cycle t =
-  if not (Kernel_scheduler.can_run_a_job t.kernel_scheduler)
-  then ignore (Luv.Loop.run ~loop:t.uv_loop ~mode:`NOWAIT () : bool);
-  Kernel_scheduler.run_cycle t.kernel_scheduler
+  advance_scheduler t;
+  if Kernel_scheduler.has_upcoming_event t.kernel_scheduler
+  then ignore (Luv.Loop.run ~loop:t.uv_loop ~mode:`NOWAIT () : bool)
+  else
+    (* TODO: Maybe we should always use `NOWAIT since we are attempting to get
+       async_kernel's scheduler and libuv's scheduler to play nice? *)
+    ignore (Luv.Loop.run ~loop:t.uv_loop ~mode:`ONCE () : bool);
+  advance_scheduler t
 ;;
 
 let run () =

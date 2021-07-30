@@ -140,8 +140,7 @@ let main port () =
        ~handle_client:(fun sock ->
          let reader = Reader.create sock in
          let writer = Writer.create sock in
-         Server.create_connection_handler () ~request_handler ~error_handler reader writer
-         >>= fun () -> Writer.close writer >>= fun () -> Reader.close reader)
+         Server.create_connection_handler () ~request_handler ~error_handler reader writer)
       : Tcp.Server.t)
 ;;
 
