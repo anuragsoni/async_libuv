@@ -1,5 +1,5 @@
-(executable
- (name main)
+(executables
+ (names main main_http)
  (preprocess
   (pps ppx_jane))
- (libraries async_libuv))
+ (libraries async_libuv httpaf))
