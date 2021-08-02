@@ -3,6 +3,10 @@ include Async_kernel
 include Async_kernel_scheduler
 module Kernel_scheduler = Async_kernel_scheduler.Private
 
+(* TODO: Add an api that allows for scheduling all libuv interactions through this
+   scheduler module. Most functions in [luv] accept a [?loop] parameter, and the scheduler
+   is the only location with knowledge of the current active loop. *)
+
 type t =
   { mutable is_running : bool
   ; kernel_scheduler : Kernel_scheduler.t
@@ -13,6 +17,7 @@ type t =
 
 let create () =
   let kernel_scheduler = Kernel_scheduler.t () in
+  (* TODO: Allow using a user-provided libuv loop. *)
   let uv_loop = Luv.Loop.default () in
   { is_running = false; kernel_scheduler; uv_loop; initialized_at = Backtrace.get () }
 ;;
