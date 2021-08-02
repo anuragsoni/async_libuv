@@ -1,4 +1,4 @@
-Example of how to run async_kernel on top of libuv (using [luv](https://github.com/aantron/luv.git))
+Example of how to use async_kernel + libuv (using [luv](https://github.com/aantron/luv.git)) for async IO.
 
 The goal is mostly to explore an api for embedding libuv into an
 existing event loop in OCaml, and getting enough[1] windows support for
